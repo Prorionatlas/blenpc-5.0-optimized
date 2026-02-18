@@ -333,6 +333,25 @@ def wall_to_json(wall_data: WallData) -> str:
             slot_copy["grid_pos"] = slot_copy["grid_pos"].to_tuple()
         serializable_slots.append(slot_copy)
     
+    # Handle hierarchical children in meta
+    meta_copy = wall_data.meta.copy()
+    if "children" in meta_copy:
+        children = meta_copy["children"]
+        serializable_children = {
+            "doors": [],
+            "windows": []
+        }
+        
+        from .door import door_to_json
+        from .window import window_to_json
+        
+        for door in children.get("doors", []):
+            serializable_children["doors"].append(json.loads(door_to_json(door)))
+        for window in children.get("windows", []):
+            serializable_children["windows"].append(json.loads(window_to_json(window)))
+            
+        meta_copy["children"] = serializable_children
+    
     data = {
         "name": wall_data.name,
         "grid_pos": wall_data.grid_pos.to_tuple(),
@@ -348,7 +367,7 @@ def wall_to_json(wall_data: WallData) -> str:
         ],
         "slots": serializable_slots,
         "tags": wall_data.tags,
-        "meta": wall_data.meta
+        "meta": meta_copy
     }
     return json.dumps(data, indent=2)
 
@@ -387,3 +406,187 @@ def create_engineered_wall(name: str, length: float, seed: int = 0):
         return generate_wall_mesh(wall_data), wall_data.slots
     else:
         return wall_data, wall_data.slots
+
+
+
+def build_wall_composed(
+    wall_spec: Dict,
+    opening_specs: Optional[List[Dict]] = None,
+    name: str = "composed_wall",
+    seed: int = 0
+) -> Dict:
+    """
+    Build a complete wall with doors and windows in one operation.
+    
+    This is the high-level API that combines wall, door, and window
+    generation into a single command.
+    
+    Args:
+        wall_spec: Wall specification dict with keys:
+            - length: float (meters)
+            - height: float (meters)
+            - thickness: float (meters, optional)
+            - material: str (optional)
+        opening_specs: List of opening specification dicts with keys:
+            - type: "door" | "window"
+            - position: dict with "x_ratio" (0.0-1.0) or "x_meters"
+            - style: door/window style (optional)
+            - material: door leaf / window frame material (optional)
+            - ... (other door/window specific params)
+        name: Composed wall identifier
+        seed: Random seed
+    
+    Returns:
+        Dict containing:
+        - wall_data: WallData object
+        - door_objects: List of DoorData objects
+        - window_objects: List of WindowData objects
+        - scene_grid: SceneGrid with all objects placed
+    
+    Example:
+        >>> spec = {
+        ...     "wall": {"length": 5.0, "height": 3.0},
+        ...     "openings": [
+        ...         {"type": "door", "position": {"x_ratio": 0.3}, "style": "single"},
+        ...         {"type": "window", "position": {"x_ratio": 0.8}, "style": "standard"}
+        ...     ]
+        ... }
+        >>> result = build_wall_composed(**spec, name="living_room_wall")
+        >>> result["wall_data"].meta["opening_count"]
+        2
+    """
+    from .door import build_door
+    from .window import build_window
+    from ..engine.grid_manager import SceneGrid
+    
+    # Parse wall spec
+    length = wall_spec["length"]
+    height = wall_spec.get("height", config.STORY_HEIGHT)
+    thickness = wall_spec.get("thickness", config.WALL_THICKNESS_BASE)
+    
+    # Calculate opening positions and create Opening objects
+    openings = []
+    door_objects = []
+    window_objects = []
+    
+    if opening_specs:
+        for idx, opening_spec in enumerate(opening_specs):
+            opening_type = opening_spec["type"]
+            
+            # Calculate position
+            if "x_ratio" in opening_spec["position"]:
+                center_x = length * opening_spec["position"]["x_ratio"]
+            elif "x_meters" in opening_spec["position"]:
+                center_x = opening_spec["position"]["x_meters"]
+            else:
+                raise ValueError("Opening position must have 'x_ratio' or 'x_meters'")
+            
+            if opening_type == "door":
+                # Get door style and dimensions
+                door_style = opening_spec.get("style", "single")
+                door_dims = config.DOOR_STANDARDS[door_style]
+                
+                # Create Opening for wall
+                opening = Opening(
+                    opening_type="door",
+                    center_x=center_x,
+                    width=door_dims["w"],
+                    height=door_dims["h"],
+                    sill_height=0.0
+                )
+                openings.append(opening)
+                
+                # Create Door object
+                door = build_door(
+                    style=door_style,
+                    material=opening_spec.get("material", "wood"),
+                    swing=opening_spec.get("swing", "inward_left"),
+                    name=f"{name}_door_{idx}",
+                    position=(center_x - door_dims["w"] / 2, 0.0, 0.0)
+                )
+                door_objects.append(door)
+                
+            elif opening_type == "window":
+                # Get window style and dimensions
+                window_style = opening_spec.get("style", "standard")
+                window_dims = config.WINDOW_STANDARDS[window_style]
+                
+                # Create Opening for wall
+                opening = Opening(
+                    opening_type="window",
+                    center_x=center_x,
+                    width=window_dims["w"],
+                    height=window_dims["h"],
+                    sill_height=window_dims["sill"]
+                )
+                openings.append(opening)
+                
+                # Create Window object
+                window = build_window(
+                    style=window_style,
+                    frame_material=opening_spec.get("frame_material", "wood"),
+                    glass_inner=opening_spec.get("glass_inner", "transparent"),
+                    glass_outer=opening_spec.get("glass_outer", "transparent"),
+                    has_sill=opening_spec.get("has_sill", True),
+                    name=f"{name}_window_{idx}",
+                    position=(center_x - window_dims["w"] / 2, 0.0, window_dims["sill"])
+                )
+                window_objects.append(window)
+    
+    # Build wall with openings
+    wall_data = build_wall(
+        length=length,
+        height=height,
+        thickness=thickness,
+        openings=openings,
+        name=name,
+        seed=seed
+    )
+    
+    # Create scene grid and place all objects
+    scene = SceneGrid()
+    
+    # Place wall
+    if not scene.place(wall_data):
+        raise RuntimeError(f"Failed to place wall '{name}'")
+    
+    # Hierarchical Placement: Doors and windows are children of the wall.
+    # They are NOT placed in the SceneGrid separately to avoid collision.
+    # Instead, they are stored in the wall's metadata.
+    wall_data.meta["children"] = {
+        "doors": door_objects,
+        "windows": window_objects
+    }
+    
+    return {
+        "wall_data": wall_data,
+        "door_objects": door_objects,
+        "window_objects": window_objects,
+        "scene_grid": scene,
+        "meta": {
+            "total_objects": 1,  # Only the wall is in the grid
+            "child_count": len(door_objects) + len(window_objects),
+            "wall_length": length,
+            "opening_count": len(openings)
+        }
+    }
+
+
+def composed_wall_to_json(composed_data: Dict) -> str:
+    """
+    Serialize composed wall data to JSON.
+    
+    Args:
+        composed_data: Dict from build_wall_composed()
+    
+    Returns:
+        JSON string representation
+    """
+    data = {
+        "wall": json.loads(wall_to_json(composed_data["wall_data"])),
+        "doors": [json.loads(d.to_json()) if hasattr(d, 'to_json') else {} for d in composed_data["door_objects"]],
+        "windows": [json.loads(w.to_json()) if hasattr(w, 'to_json') else {} for w in composed_data["window_objects"]],
+        "scene_stats": composed_data["scene_grid"].get_stats(),
+        "meta": composed_data["meta"]
+    }
+    return json.dumps(data, indent=2)

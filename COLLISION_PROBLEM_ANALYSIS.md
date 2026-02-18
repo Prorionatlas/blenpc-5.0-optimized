@@ -372,6 +372,10 @@ assert len(result["wall_data"].meta["children"]["windows"]) == 1  # ✅
 
 ---
 
+## 💡 Kritik Teknik Ayrım
+
+Archimesh, Archipack ve Geometry Nodes collision’ı çözmez; collision gerektiren bir problem alanında çalışmazlar. BlenPC’de collision problemi, yanlış domain abstraction yüzünden oluşmuştu ve **hierarchical placement** ile doğru katmana taşınarak ortadan kaldırıldı.
+
 ## 🤖 AI'lar İçin Özet
 
 **Başka bir AI bu raporu okuyorsa:**
