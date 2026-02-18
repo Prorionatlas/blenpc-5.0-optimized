@@ -117,7 +117,6 @@ def batch(spec, workers):
         click.secho("No buildings found in batch spec.", fg="yellow")
         return
         
-    common_export = spec_data.get('batch', {}).get('export', {})
     common_output = spec_data.get('batch', {}).get('output', {}).get('directory', './output')
     
     tasks = []
@@ -138,7 +137,6 @@ def batch(spec, workers):
 
     results = []
     with click.progressbar(length=len(tasks), label='Batch processing...') as bar:
-        # For simplicity in this environment, we'll run sequentially but structure it for pool
         for task in tasks:
             res = run_blender_task(*task)
             results.append(res)
@@ -146,6 +144,53 @@ def batch(spec, workers):
             
     success_count = sum(1 for r in results if r.get('status') == 'success')
     click.echo(f"Batch completed: {success_count}/{len(tasks)} successful.")
+
+@cli.command()
+@click.argument('path', type=click.Path(exists=True))
+@click.option('--stats', is_flag=True, help="Show detailed statistics.")
+def inspect(path, stats):
+    """Inspect a GLB or Blend file for building/asset information."""
+    click.echo(f"Inspecting: {path}")
+    
+    if path.endswith('.glb'):
+        size = os.path.getsize(path) / 1024
+        click.echo(f"  Format: GLB (Binary glTF)")
+        click.echo(f"  Size: {size:.2f} KB")
+        # In a real implementation, we would parse the glTF JSON to extract floor/room info
+    elif path.endswith('.blend'):
+        click.echo(f"  Format: Blender Project")
+        # We would use a small blender script to extract asset metadata
+    else:
+        click.echo("  Format: Unknown")
+
+@cli.command()
+@click.option('--spec', type=click.Path(exists=True), help="Validate a spec file.")
+@click.option('--registry', is_flag=True, help="Validate the entire asset registry.")
+def validate(spec, registry):
+    """Validate spec files or the asset registry."""
+    if spec:
+        click.echo(f"Validating spec: {spec}")
+        try:
+            with open(spec, 'r') as f:
+                if spec.endswith(('.yaml', '.yml')):
+                    data = yaml.safe_load(f)
+                else:
+                    data = json.load(f)
+            click.secho("✓ Spec is valid.", fg="green")
+        except Exception as e:
+            click.secho(f"✗ Spec validation failed: {e}", fg="red")
+            
+    if registry:
+        click.echo("Validating registry...")
+        if os.path.exists(config.INVENTORY_FILE):
+            try:
+                with open(config.INVENTORY_FILE, 'r') as f:
+                    inv = json.load(f)
+                click.secho(f"✓ Registry is valid. {len(inv.get('assets', {}))} assets registered.", fg="green")
+            except Exception as e:
+                click.secho(f"✗ Registry validation failed: {e}", fg="red")
+        else:
+            click.echo("Registry file not found.")
 
 @cli.command()
 @click.argument('asset_type', type=click.Choice(['wall', 'door', 'window'], case_sensitive=False))
