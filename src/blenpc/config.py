@@ -61,11 +61,38 @@ AUTO_BACKUP_REGISTRY = True
 BLENDER_MEMORY_WARN = 3000
 
 # --- 5. ARCHITECTURAL CONSTANTS ---
-GRID_UNIT = 0.25
+GRID_UNIT = 0.25  # Legacy - kept for backward compatibility
 STORY_HEIGHT = 3.0
 WALL_THICKNESS_BASE = 0.2
 DEFAULT_UNIT_SYSTEM = "metric"
 EXPORT_PRECISION = 4
+
+# --- 5.1. INTEGER GRID SYSTEM (v5.2.0) ---
+MICRO_UNIT = 0.025  # 1 grid unit = 2.5cm (base unit for integer coordinates)
+SNAP_MODES = {
+    "micro":  1,    # 0.025m = 2.5cm  — small parts (screws, handles, weapon parts)
+    "meso":   10,   # 0.25m  = 25cm  — furniture, doors, windows
+    "macro":  40,   # 1.0m   = 100cm — walls, rooms, buildings
+}
+
+# --- 5.2. MODULAR STANDARDS (ISO 2848 + Game Standards) ---
+WALL_STANDARDS = {
+    "height":    {"min": 2.4, "default": 3.0,  "max": 4.5,  "step": 0.25},
+    "thickness": {"thin": 0.1, "standard": 0.2, "thick": 0.3},
+}
+
+DOOR_STANDARDS = {
+    "single":  {"w": 0.9,  "h": 2.1},
+    "double":  {"w": 1.8,  "h": 2.1},
+    "garage":  {"w": 2.4,  "h": 2.4},
+}
+
+WINDOW_STANDARDS = {
+    "small":     {"w": 0.6,  "h": 0.6,  "sill": 1.2},
+    "standard":  {"w": 1.2,  "h": 1.4,  "sill": 0.9},
+    "large":     {"w": 1.8,  "h": 1.6,  "sill": 0.8},
+    "panoramic": {"w": 2.4,  "h": 1.8,  "sill": 0.6},
+}
 
 # --- 6. MATH CONSTANTS ---
 PHI = (1 + 5**0.5) / 2
