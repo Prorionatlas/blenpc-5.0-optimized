@@ -31,14 +31,14 @@ def intersects(a: Rect, b: Rect) -> bool:
 
 
 def _room_large_enough(rect: Rect) -> bool:
-    return rect.width() >= MIN_ROOM_SIZE and rect.height() >= MIN_ROOM_SIZE
+    return rect.width() >= MIN_ROOM_SIZE - EPSILON and rect.height() >= MIN_ROOM_SIZE - EPSILON
 
 
 def generate_floorplan(width: float, depth: float, seed: int, floor_index: int) -> Tuple[List[Room], Corridor]:
     rng = random.Random(seed + floor_index)
-
     width = snap(width)
     depth = snap(depth)
+
     main_rect = Rect(0.0, 0.0, width, depth)
 
     cx = snap(width / 2 - CORRIDOR_WIDTH / 2)
@@ -51,31 +51,37 @@ def generate_floorplan(width: float, depth: float, seed: int, floor_index: int) 
     while queue:
         rect = queue.pop()
 
+        # If rect is already the corridor or inside it, skip
+        if intersects(rect, corridor.rect) and (rect.min_x >= corridor.rect.min_x - EPSILON and rect.max_x <= corridor.rect.max_x + EPSILON):
+            continue
+
+        # Try to split to isolate corridor
+        # If corridor is inside rect X-range, split at corridor boundaries
+        if corridor.rect.min_x > rect.min_x + EPSILON and corridor.rect.min_x < rect.max_x - EPSILON:
+            r1, r2 = split_rect(rect, True, corridor.rect.min_x)
+            queue.append(r1)
+            queue.append(r2)
+            continue
+        if corridor.rect.max_x > rect.min_x + EPSILON and corridor.rect.max_x < rect.max_x - EPSILON:
+            r1, r2 = split_rect(rect, True, corridor.rect.max_x)
+            queue.append(r1)
+            queue.append(r2)
+            continue
+
+        # Normal BSP split
         if rect.width() < 2 * MIN_ROOM_SIZE and rect.height() < 2 * MIN_ROOM_SIZE:
             if not intersects(rect, corridor.rect) and _room_large_enough(rect):
                 rooms.append(Room(rect, floor_index, room_id))
                 room_id += 1
             continue
 
-        vertical = rng.choice([True, False])
+        # Choose split axis
+        vertical = rect.width() > rect.height()
         split = snap(rect.min_x + rect.width() / 2) if vertical else snap(rect.min_y + rect.height() / 2)
-
-        if vertical and (split <= rect.min_x + MIN_ROOM_SIZE or split >= rect.max_x - MIN_ROOM_SIZE):
-            vertical = False
-            split = snap(rect.min_y + rect.height() / 2)
-        if (not vertical) and (split <= rect.min_y + MIN_ROOM_SIZE or split >= rect.max_y - MIN_ROOM_SIZE):
-            vertical = True
-            split = snap(rect.min_x + rect.width() / 2)
-
+        
         r1, r2 = split_rect(rect, vertical, split)
-
+        
         if not _room_large_enough(r1) or not _room_large_enough(r2):
-            if not intersects(rect, corridor.rect) and _room_large_enough(rect):
-                rooms.append(Room(rect, floor_index, room_id))
-                room_id += 1
-            continue
-
-        if intersects(r1, corridor.rect) or intersects(r2, corridor.rect):
             if not intersects(rect, corridor.rect) and _room_large_enough(rect):
                 rooms.append(Room(rect, floor_index, room_id))
                 room_id += 1
