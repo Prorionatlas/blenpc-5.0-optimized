@@ -4,6 +4,7 @@ import os
 import time
 import bpy
 import traceback
+from pathlib import Path
 
 # Add project root to path for imports
 project_root = os.path.dirname(os.path.abspath(__file__))
@@ -13,7 +14,9 @@ if project_root not in sys.path:
 # Use absolute imports
 from atoms.wall import create_engineered_wall
 from engine.inventory_manager import InventoryManager
-from config import LIBRARY_DIR, REGISTRY_DIR, INVENTORY_FILE
+from mf_v5.engine import generate as generate_building
+from mf_v5.datamodel import BuildingSpec, RoofType
+import config
 
 def run():
     input_file = None
@@ -71,20 +74,52 @@ def run():
                     "tags": wall_data.get("tags", ["arch_wall"]),
                     "dimensions": {"width": length, "height": 3.0, "depth": 0.2},
                     "slots": slots,
-                    "blend_file": os.path.join(LIBRARY_DIR, f"{name}.blend"),
+                    "blend_file": os.path.join(config.LIBRARY_DIR, f"{name}.blend"),
                     "seed": seed
                 }
                 InventoryManager.register_asset(asset_info)
                 
                 # Save
-                os.makedirs(LIBRARY_DIR, exist_ok=True)
-                lib_path = os.path.join(LIBRARY_DIR, f"{name}.blend")
+                os.makedirs(config.LIBRARY_DIR, exist_ok=True)
+                lib_path = os.path.join(config.LIBRARY_DIR, f"{name}.blend")
                 bpy.ops.wm.save_as_mainfile(filepath=lib_path)
                 
                 result = {
                     "status": "success",
                     "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S"),
                     "result": {"asset_name": name, "slots_count": len(slots), "blend_file": lib_path}
+                }
+            elif cmd == "generate_building":
+                spec_data = command_data.get("spec", {})
+                width = spec_data.get("width", 20.0)
+                depth = spec_data.get("depth", 16.0)
+                floors = spec_data.get("floors", 1)
+                roof_str = spec_data.get("roof", "flat").upper()
+                output_dir = spec_data.get("output_dir", "./output")
+                
+                roof_type = getattr(RoofType, roof_str, RoofType.FLAT)
+                
+                spec = BuildingSpec(
+                    width=width,
+                    depth=depth,
+                    floors=floors,
+                    seed=seed,
+                    roof_type=roof_type
+                )
+                
+                out_path = Path(output_dir)
+                out_path.mkdir(parents=True, exist_ok=True)
+                
+                gen_out = generate_building(spec, out_path)
+                
+                result = {
+                    "status": "success",
+                    "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S"),
+                    "result": {
+                        "glb_path": gen_out.glb_path,
+                        "manifest": gen_out.export_manifest,
+                        "floors": [f.__dict__ for f in gen_out.floors]
+                    }
                 }
             else:
                 result = {"status": "error", "message": f"Unknown command: {cmd}"}
