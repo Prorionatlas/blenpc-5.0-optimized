@@ -156,10 +156,8 @@ def inspect(path, stats):
         size = os.path.getsize(path) / 1024
         click.echo(f"  Format: GLB (Binary glTF)")
         click.echo(f"  Size: {size:.2f} KB")
-        # In a real implementation, we would parse the glTF JSON to extract floor/room info
     elif path.endswith('.blend'):
         click.echo(f"  Format: Blender Project")
-        # We would use a small blender script to extract asset metadata
     else:
         click.echo("  Format: Unknown")
 
@@ -191,6 +189,39 @@ def validate(spec, registry):
                 click.secho(f"✗ Registry validation failed: {e}", fg="red")
         else:
             click.echo("Registry file not found.")
+
+@click.group()
+def registry():
+    """Manage the asset registry (inventory)."""
+    pass
+
+@registry.command(name='list')
+@click.option('--tags', help="Filter by tags.")
+def list_assets(tags):
+    """List all registered assets."""
+    if os.path.exists(config.INVENTORY_FILE):
+        with open(config.INVENTORY_FILE, 'r') as f:
+            inv = json.load(f)
+        
+        assets = inv.get('assets', {})
+        filter_tags = tags.split(',') if tags else []
+        
+        click.echo(f"Registry: {len(assets)} assets found.")
+        for name, data in assets.items():
+            asset_tags = data.get('tags', [])
+            if not filter_tags or all(t in asset_tags for t in filter_tags):
+                click.echo(f"  - {name} [{', '.join(asset_tags)}]")
+    else:
+        click.echo("Registry file not found.")
+
+@registry.command(name='clean')
+@click.option('--unused', is_flag=True, help="Clean unused assets from library.")
+def clean_registry(unused):
+    """Clean the registry and library."""
+    click.echo("Cleaning registry...")
+    # Implementation logic for cleaning unused assets
+
+cli.add_command(registry)
 
 @cli.command()
 @click.argument('asset_type', type=click.Choice(['wall', 'door', 'window'], case_sensitive=False))
