@@ -1,0 +1,14 @@
+{
+  "building": "Building.glb",
+  "collider": "Building-col.glb",
+  "navmesh": "Building_navmesh.glb",
+  "settings": {
+    "format": "GLTF2",
+    "y_up": true,
+    "apply_modifiers": true,
+    "apply_scale": true,
+    "selected_only": true,
+    "collider_suffix": "-col",
+    "navmesh_collection": "MF_Navmesh"
+  }
+}
