@@ -27,5 +27,7 @@
 
 ## Sprint 5: Optimizasyon ve Temizlik (Phase 6)
 - [x] Eski `box builder` mantığını `@deprecated` olarak işaretle.
-- [ ] Mesh cleanup işlemlerini minimalize et (geometri artık temiz üretilmeli).
+- [x] Mesh cleanup işlemlerini minimalize et (geometri artık temiz üretilmeli).
+- [x] Mimari düzeltmeler ve Mantık hatalarının giderilmesi.
+- [x] Kapsamlı test süiti oluşturulması (`tests/test_v5_*.py`).
 - [ ] Performans benchmarkı ve final testler.

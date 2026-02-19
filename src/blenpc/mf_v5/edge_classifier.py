@@ -21,18 +21,20 @@ def canonical_edge(p1, p2):
     p2_q = (quantize(p2[0]), quantize(p2[1]))
     return tuple(sorted([p1_q, p2_q]))
 
+from shapely.geometry import LineString
+
 def classify_edges(footprint: Polygon, rooms: List[Room]) -> List[ClassifiedEdge]:
-    """Identify which room edges are exterior vs interior."""
-    # Exterior edge set from footprint
-    ext_coords = [
-        (quantize(x), quantize(y))
-        for x, y in footprint.exterior.coords
-    ]
+    """Identify which room edges are exterior vs interior.
     
-    ext_set = set()
-    for i in range(len(ext_coords) - 1):
-        ext_set.add(canonical_edge(ext_coords[i], ext_coords[i+1]))
-        
+    Uses Shapely's contains/covers for robust collinearity detection.
+    """
+    import shapely
+    from ..config import GRID
+    
+    # Footprint boundary for containment checks
+    # We use a small buffer to avoid precision issues with 'on the boundary'
+    boundary = footprint.exterior
+    
     result = []
     seen = set()
     
@@ -52,7 +54,16 @@ def classify_edges(footprint: Polygon, rooms: List[Room]) -> List[ClassifiedEdge
                 continue # Shared wall - already added
             seen.add(key)
             
-            etype = EdgeType.EXTERIOR if key in ext_set else EdgeType.INTERIOR
+            # Create a line for this edge
+            edge_line = LineString([p1, p2])
+            
+            # If the edge is on the footprint boundary, it's EXTERIOR
+            # We use covers() on the boundary line
+            if boundary.covers(edge_line):
+                etype = EdgeType.EXTERIOR
+            else:
+                etype = EdgeType.INTERIOR
+                
             result.append(ClassifiedEdge(p1, p2, etype))
             
     return result
