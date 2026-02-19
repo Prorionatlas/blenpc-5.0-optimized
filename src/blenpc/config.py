@@ -59,13 +59,18 @@ STRICT_VALIDATION = True
 CACHE_ENABLED = True
 AUTO_BACKUP_REGISTRY = True
 BLENDER_MEMORY_WARN = 3000
+USE_NEW_GEOMETRY = True  # BlenPC v5.0 New Pipeline Toggle
 
 # --- 5. ARCHITECTURAL CONSTANTS ---
+GRID = 0.25  # All snap operations use this value
 GRID_UNIT = 0.25  # Legacy - kept for backward compatibility
-STORY_HEIGHT = 3.0
+STORY_HEIGHT = 3.20  # WALL_HEIGHT + 0.2m (slab)
+WALL_HEIGHT = 3.00  # Used only by vertical_authority.py
+WALL_THICKNESS = 0.20  # Inner: symmetric, outer: single-sided
 WALL_THICKNESS_BASE = 0.2
 DEFAULT_UNIT_SYSTEM = "metric"
 EXPORT_PRECISION = 4
+MERGE_DISTANCE = 0.005  # Minimal cleanup for new pipeline
 
 # --- 5.1. INTEGER GRID SYSTEM (v5.2.0) ---
 MICRO_UNIT = 0.025  # 1 grid unit = 2.5cm (base unit for integer coordinates)
