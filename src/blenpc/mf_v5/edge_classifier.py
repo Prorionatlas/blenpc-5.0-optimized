@@ -32,8 +32,8 @@ def classify_edges(footprint: Polygon, rooms: List[Room]) -> List[ClassifiedEdge
     from ..config import GRID
     
     # Footprint boundary for containment checks
-    # We use a small buffer to avoid precision issues with 'on the boundary'
-    boundary = footprint.exterior
+    # MultiPolygon support: Use boundary property which works for both Polygon and MultiPolygon
+    boundary = footprint.boundary
     
     result = []
     seen = set()
