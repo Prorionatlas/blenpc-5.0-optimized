@@ -1,8 +1,8 @@
 import pytest
-from mf_v5.floorplan import generate_floorplan
-from mf_v5.doors import carve_doors, DoorOpening
-from mf_v5.datamodel import WallSegment, Rect
-from mf_v5.config import MIN_ROOM_SIZE, EPSILON
+from blenpc.mf_v5.floorplan import generate_floorplan
+from blenpc.mf_v5.doors import carve_doors, DoorOpening
+from blenpc.mf_v5.datamodel import WallSegment, Rect
+from blenpc.mf_v5.config import MIN_ROOM_SIZE, EPSILON
 
 def test_floorplan_minimum_room_size():
     """Ensure all generated rooms respect the minimum room size."""
@@ -19,7 +19,7 @@ def test_corridor_placement():
     # In current BSP, it's a vertical spine: (width - corridor_width) / 2
     # The value is snapped to the grid (0.25). 
     # (20 - 1.8) / 2 = 9.1 -> snapped to 0.25 grid = 9.0
-    from mf_v5.config import snap
+    from blenpc.mf_v5.config import snap
     corridor_width = 1.8
     expected_min_x = snap((width - corridor_width) / 2)
     assert abs(corridor.rect.min_x - expected_min_x) < EPSILON

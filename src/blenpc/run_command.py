@@ -55,6 +55,9 @@ def run():
                 name = wall_data.get("name", "GenWall")
                 length = wall_data.get("dimensions", {}).get("width", 4.0)
                 
+                if not bpy:
+                    raise ImportError("Blender 'bpy' module is not available.")
+                
                 obj, slots = create_engineered_wall(name, length, seed)
                 
                 asset_info = {

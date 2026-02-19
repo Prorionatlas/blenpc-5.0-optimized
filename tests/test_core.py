@@ -1,8 +1,8 @@
 import pytest
 from pathlib import Path
-from mf_v5 import BuildingSpec, RoofType, generate
-from mf_v5.exceptions import ConfigurationError, GenerationError
-from mf_v5.config import snap
+from blenpc.mf_v5 import BuildingSpec, RoofType, generate
+from blenpc.mf_v5.exceptions import ConfigurationError, GenerationError
+from blenpc.mf_v5.config import snap
 
 def test_snap_to_grid():
     assert snap(0.24) == 0.25
@@ -17,7 +17,7 @@ def test_building_spec_validation():
 
 def test_floorplan_generation_consistency():
     # Same seed should produce same floorplan
-    from mf_v5.floorplan import generate_floorplan
+    from blenpc.mf_v5.floorplan import generate_floorplan
     rooms1, _ = generate_floorplan(20, 20, 42, 0)
     rooms2, _ = generate_floorplan(20, 20, 42, 0)
     
@@ -27,8 +27,8 @@ def test_floorplan_generation_consistency():
         assert r1.id == r2.id
 
 def test_adjacency_map_logic():
-    from mf_v5.adjacency import build_adjacency
-    from mf_v5.datamodel import Rect, Room
+    from blenpc.mf_v5.adjacency import build_adjacency
+    from blenpc.mf_v5.datamodel import Rect, Room
     
     # Create two rooms next to each other
     r1 = Room(Rect(0, 0, 5, 5), 0, 0)
@@ -39,8 +39,8 @@ def test_adjacency_map_logic():
     assert adj[1]["west"] == 0
 
 def test_roof_generation_flat():
-    from mf_v5.roof import build_roof
-    from mf_v5.datamodel import Rect, RoofType
+    from blenpc.mf_v5.roof import build_roof
+    from blenpc.mf_v5.datamodel import Rect, RoofType
     
     rect = Rect(0, 0, 10, 10)
     roof = build_roof(rect, 3.0, RoofType.FLAT)

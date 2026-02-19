@@ -1,5 +1,5 @@
-from mf_v5.datamodel import Rect, RoofType
-from mf_v5.roof import build_roof
+from blenpc.mf_v5.datamodel import Rect, RoofType
+from blenpc.mf_v5.roof import build_roof
 
 def test_hip_roof_geometry():
     rect = Rect(0, 0, 10, 10)

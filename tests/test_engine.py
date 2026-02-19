@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from mf_v5 import BuildingSpec, RoofType, generate
-from mf_v5.floorplan import generate_floorplan
+from blenpc.mf_v5 import BuildingSpec, RoofType, generate
+from blenpc.mf_v5.floorplan import generate_floorplan
 
 
 def test_floorplan_deterministic():
