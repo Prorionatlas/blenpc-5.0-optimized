@@ -74,16 +74,16 @@ def run_blender_task(input_data: Dict, preview: bool = False) -> Dict:
         if os.path.exists(output_file): os.remove(output_file)
 
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
-@click.version_option(version="5.1.2", prog_name="BlenPC")
+@click.version_option(version="5.2.0", prog_name="BlenPC")
 @click.option('--verbose', '-v', is_flag=True, help="Enable verbose logging.")
 @click.option('--blender-path', type=click.Path(exists=True), help="Custom path to Blender executable.")
 @click.option('--skip-boot', is_flag=True, help="Skip boot animation sequence.")
 @click.option('--json-output', is_flag=True, help="Output only machine-readable JSON for AI agents.")
 def cli(verbose, blender_path, skip_boot, json_output):
     """
-    [bold cyan]BLENPC v5.1.2[/bold cyan] | [bold magenta]HUMAN-AI HYBRID INTERFACE[/bold magenta]
+    [bold cyan]BLENPC v5.2.0[/bold cyan] | [bold magenta]HUMAN-AI HYBRID INTERFACE[/bold magenta]
     
-    [dim white]Cyberpunk-style procedural architecture generator with AI-friendly extensions.[/dim white]
+    [dim white]Cyberpunk-style procedural architecture generator with Integer Grid & Collision Engine.[/dim white]
     """
     if verbose:
         os.environ["MF_LOG_LEVEL"] = "DEBUG"
@@ -99,19 +99,20 @@ def cli(verbose, blender_path, skip_boot, json_output):
 @click.option('--floors', '-f', type=int, default=1, help="Floor count.")
 @click.option('--seed', '-s', type=int, default=0, help="RNG seed.")
 @click.option('--roof', '-r', type=click.Choice(['flat', 'gabled', 'hip', 'shed'], case_sensitive=False), default='flat', help="Roof geometry.")
+@click.option('--snap', type=click.Choice(['LOOSE', 'STRICT', 'MODULAR'], case_sensitive=False), default='STRICT', help="Grid snap mode (v5.2.0).")
 @click.option('--output', '-o', type=click.Path(), default='./output', help="Output directory.")
 @click.option('--spec', type=click.Path(exists=True), help="YAML/JSON specification file.")
 @click.option('--name', '-n', help="Model name for registry storage.")
 @click.option('--tags', '-t', help="Semantic tags (comma separated).")
 @click.option('--preview', is_flag=True, help="Open in Blender GUI.")
 @click.pass_context
-def generate(ctx, width, depth, floors, seed, roof, output, spec, name, tags, preview):
-    """Execute building generation sequence."""
+def generate(ctx, width, depth, floors, seed, roof, snap, output, spec, name, tags, preview):
+    """Execute building generation sequence with v5.2.0 Integer Grid."""
     json_mode = ctx.parent.params.get('json_output', False)
     
     if not json_mode:
         console.print(f"[cyan]{LINE_DECO}[/cyan]")
-        console.print("[header]» INITIATING ARCHITECTURAL_SYNTHESIS_v5[/header]")
+        console.print("[header]» INITIATING ARCHITECTURAL_SYNTHESIS_v5.2[/header]")
     
     if spec:
         with open(spec, 'r') as f:
@@ -122,13 +123,19 @@ def generate(ctx, width, depth, floors, seed, roof, output, spec, name, tags, pr
         floors = b_spec.get('floors', floors)
         seed = b_spec.get('seed', seed)
         roof = b_spec.get('roof', {}).get('type', roof)
+        snap = b_spec.get('snap', snap)
         output = b_spec.get('output', {}).get('directory', output)
 
     input_data = {
         "command": "generate_building",
         "seed": seed,
         "spec": {
-            "width": width, "depth": depth, "floors": floors, "roof": roof, "output_dir": output
+            "width": width, 
+            "depth": depth, 
+            "floors": floors, 
+            "roof": roof, 
+            "snap_mode": snap,
+            "output_dir": output
         }
     }
     
@@ -139,6 +146,7 @@ def generate(ctx, width, depth, floors, seed, roof, output, spec, name, tags, pr
         table.add_row("[label]FLOORS[/label]", f"[value]{floors}[/value]")
         table.add_row("[label]SEED[/label]", f"[value]{seed}[/value]")
         table.add_row("[label]ROOF[/label]", f"[value]{roof.upper()}[/value]")
+        table.add_row("[label]SNAP_MODE[/label]", f"[bold yellow]{snap}[/bold yellow] ([dim]{config.SNAP_MODES.get(snap)}m[/dim])")
         table.add_row("[label]OUTPUT[/label]", f"[value]{output}[/value]")
         console.print(table)
     
@@ -164,7 +172,12 @@ def generate(ctx, width, depth, floors, seed, roof, output, spec, name, tags, pr
             print(json.dumps(res, indent=2))
         else:
             console.print(f"\n[error]SYNTHESIS_FAILED[/error]")
-            console.print(f"[error]{res.get('message')}[/error]\n")
+            # Collision Engine errors are formatted specifically
+            msg = res.get('message', 'Unknown error')
+            if "LAYOUT_CONFLICT" in msg:
+                console.print(Panel(f"[bold red]COLLISION_ENGINE_ALERT[/bold red]\n\n{msg}", border_style="red"))
+            else:
+                console.print(f"[error]{msg}[/error]\n")
 
 @cli.group()
 def registry():
@@ -192,14 +205,16 @@ def list_models(ctx, tags):
     table = Table(box=None, header_style="header", border_style="border")
     table.add_column("IDENTIFIER")
     table.add_column("DIMENSIONS")
+    table.add_column("SNAP")
     table.add_column("TIMESTAMP")
     table.add_column("TAGS")
     
     for name, data in models.items():
         spec = data.get('spec', {})
         dim_str = f"{spec.get('width')}x{spec.get('depth')}x{spec.get('floors')}F"
+        snap_str = spec.get('snap_mode', 'N/A')
         tags_str = ", ".join(data.get('tags', []))
-        table.add_row(f"[value]{name}[/value]", dim_str, data.get('timestamp'), tags_str)
+        table.add_row(f"[value]{name}[/value]", dim_str, snap_str, data.get('timestamp'), tags_str)
         
     console.print("\n[header]NEURAL_MODEL_REGISTRY_QUERY[/header]")
     console.print(table)
@@ -210,7 +225,8 @@ def info():
     """Display neural core diagnostics."""
     console.print(f"\n[bold cyan]{CYBERPUNK_LOGO}[/bold cyan]")
     table = Table(box=None, show_header=False, padding=(0, 2))
-    table.add_row("[label]CORE_VERSION[/label]", "[value]5.1.2[/value]")
+    table.add_row("[label]CORE_VERSION[/label]", "[value]5.2.0[/value]")
+    table.add_row("[label]MICRO_UNIT[/label]", f"[value]{config.MICRO_UNIT}m[/value]")
     table.add_row("[label]PYTHON_RUNTIME[/label]", f"[value]{platform.python_version()}[/value]")
     table.add_row("[label]HOST_SYSTEM[/label]", f"[value]{platform.system()} {platform.release()}[/value]")
     table.add_row("[label]BLENDER_PATH[/label]", f"[value]{os.environ.get('BLENDER_PATH', config.BLENDER_PATH)}[/value]")
@@ -219,6 +235,15 @@ def info():
     
     console.print("\n[header]SYSTEM_DIAGNOSTICS[/header]")
     console.print(table)
+    
+    # Show snap modes
+    snap_table = Table(title="ACTIVE_SNAP_MODES", box=None, header_style="bold yellow")
+    snap_table.add_column("MODE")
+    snap_table.add_column("PRECISION")
+    for mode, prec in config.SNAP_MODES.items():
+        snap_table.add_row(mode, f"{prec}m")
+    console.print(snap_table)
+    
     console.print(f"\n[ai]AI_AGENT_MODE: ACTIVE (Use --json-output for structured data)[/ai]")
     console.print(f"[cyan]{SCIFI_DECO}[/cyan]\n")
 
