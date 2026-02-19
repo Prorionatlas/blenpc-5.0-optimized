@@ -62,22 +62,22 @@ BLENDER_MEMORY_WARN = 3000
 USE_NEW_GEOMETRY = True  # BlenPC v5.0 New Pipeline Toggle
 
 # --- 5. ARCHITECTURAL CONSTANTS ---
-GRID = 0.25  # All snap operations use this value
-GRID_UNIT = 0.25  # Legacy - kept for backward compatibility
-STORY_HEIGHT = 3.20  # WALL_HEIGHT + 0.2m (slab)
+MICRO_UNIT = 0.025  # v5.2.0 Base Unit: 2.5cm (Integer Grid Base)
+GRID = 0.25         # Standard Grid (10x Micro-Unit)
+GRID_UNIT = 0.25    # Legacy - kept for backward compatibility
+STORY_HEIGHT = 3.20 # WALL_HEIGHT + 0.2m (slab)
 WALL_HEIGHT = 3.00  # Used only by vertical_authority.py
-WALL_THICKNESS = 0.20  # Inner: symmetric, outer: single-sided
+WALL_THICKNESS = 0.20 # Inner: symmetric, outer: single-sided
 WALL_THICKNESS_BASE = 0.2
 DEFAULT_UNIT_SYSTEM = "metric"
 EXPORT_PRECISION = 4
-MERGE_DISTANCE = 0.005  # Minimal cleanup for new pipeline
+MERGE_DISTANCE = 0.005 # Minimal cleanup for new pipeline
 
 # --- 5.1. INTEGER GRID SYSTEM (v5.2.0) ---
-MICRO_UNIT = 0.025  # 1 grid unit = 2.5cm (base unit for integer coordinates)
 SNAP_MODES = {
-    "micro":  1,    # 0.025m = 2.5cm  — small parts (screws, handles, weapon parts)
-    "meso":   10,   # 0.25m  = 25cm  — furniture, doors, windows
-    "macro":  40,   # 1.0m   = 100cm — walls, rooms, buildings
+    "LOOSE": 0.25,
+    "STRICT": 0.025,
+    "MODULAR": 0.1
 }
 
 # --- 5.2. MODULAR STANDARDS (ISO 2848 + Game Standards) ---

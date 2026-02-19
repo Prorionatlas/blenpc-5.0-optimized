@@ -22,6 +22,7 @@ from .edge_classifier import classify_edges
 from .vertical_authority import floor_elevations
 from .walls import build_wall_strip
 from .validator import validate_mesh, generation_gate
+from .collision_engine import CollisionEngine
 from .export import ExportSettings, export_manifest
 
 @dataclass
@@ -62,6 +63,12 @@ def generate(spec: BuildingSpec, output_dir: Path) -> GenerationOutput:
             from .floorplan import generate_floorplan
             rooms, corridor = generate_floorplan(spec.width, spec.depth, spec.seed, floor_idx)
             
+            # KATMAN 0.5: Collision Check
+            valid, msg = CollisionEngine.validate_layout(rooms)
+            if not valid:
+                logger.error(msg)
+                raise ValueError(msg)
+
             # KATMAN 1: Geometry Authority
             footprint = robust_union(rooms)
             

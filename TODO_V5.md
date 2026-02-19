@@ -30,4 +30,11 @@
 - [x] Mesh cleanup işlemlerini minimalize et (geometri artık temiz üretilmeli).
 - [x] Mimari düzeltmeler ve Mantık hatalarının giderilmesi.
 - [x] Kapsamlı test süiti oluşturulması (`tests/test_v5_*.py`).
-- [ ] Performans benchmarkı ve final testler.
+- [x] Performans benchmarkı ve v5.2.0 Core testleri.
+
+## Sprint 6: Integer Grid & Collision Engine (v5.2.0)
+- [x] `MICRO_UNIT` (0.025m) tam sayı grid sisteminin kurulması.
+- [x] `geometry_authority.py` güncellemesi: Float drift hatalarının önlenmesi.
+- [x] `collision_engine.py`: Uzamsal çakışma kontrol motoru.
+- [x] `engine.py` entegrasyonu: Üretim öncesi çakışma validasyonu.
+- [x] v5.2.0 test süiti (`tests/test_v5_2_core.py`) ve GEOS hatalarının giderilmesi.
