@@ -9,9 +9,22 @@ from typing import Optional, List, Dict
 from pathlib import Path
 from rich.console import Console
 from rich.table import Table
-from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
-from rich import print as rprint
+from rich.theme import Theme
+
+# Define a professional, industrial theme
+INDUSTRIAL_THEME = Theme({
+    "info": "dim cyan",
+    "warning": "yellow",
+    "error": "bold red",
+    "success": "bold white",
+    "header": "bold white",
+    "label": "bold white",
+    "value": "dim white",
+    "border": "dim white"
+})
+
+console = Console(theme=INDUSTRIAL_THEME)
 
 # Expert Fix: Add src/ to path for CLI to find the blenpc package
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -19,8 +32,6 @@ if PROJECT_ROOT not in sys.path:
     sys.path.append(PROJECT_ROOT)
 
 from blenpc import config
-
-console = Console()
 
 def run_blender_task(input_data: Dict, preview: bool = False) -> Dict:
     """Helper to run a single Blender task using the standardized run_command.py."""
@@ -40,7 +51,7 @@ def run_blender_task(input_data: Dict, preview: bool = False) -> Dict:
     blender_cmd.extend(["--python", run_cmd_path, "--", input_file, output_file])
     
     try:
-        with console.status("[bold green]Executing Blender task...", spinner="dots"):
+        with console.status("[dim]Processing...", spinner="line"):
             result = subprocess.run(blender_cmd, capture_output=True, text=True)
             
         if os.path.exists(output_file):
@@ -48,7 +59,7 @@ def run_blender_task(input_data: Dict, preview: bool = False) -> Dict:
                 return json.load(f)
         else:
             error_msg = result.stderr if result.stderr else "No output from Blender."
-            return {"status": "error", "message": f"Blender did not produce output. \n{error_msg}"}
+            return {"status": "error", "message": f"Execution failed: \n{error_msg}"}
     except Exception as e:
         return {"status": "error", "message": str(e)}
     finally:
@@ -61,9 +72,9 @@ def run_blender_task(input_data: Dict, preview: bool = False) -> Dict:
 @click.option('--blender-path', type=click.Path(exists=True), help="Custom path to Blender executable.")
 def cli(verbose, blender_path):
     """
-    [bold cyan]BlenPC v5.1.2[/bold cyan] - Expert-Driven Procedural Building Generator.
+    BLENPC v5.1.2 | INDUSTRIAL PROCEDURAL GENERATOR
     
-    A professional tool for generating architectural assets and buildings using Blender.
+    A high-precision tool for architectural asset generation and building synthesis.
     """
     if verbose:
         os.environ["MF_LOG_LEVEL"] = "DEBUG"
@@ -71,17 +82,17 @@ def cli(verbose, blender_path):
         os.environ["BLENDER_PATH"] = blender_path
 
 @cli.command()
-@click.option('--width', '-w', type=float, default=20.0, help="Building width in meters.")
-@click.option('--depth', '-d', type=float, default=16.0, help="Building depth in meters.")
-@click.option('--floors', '-f', type=int, default=1, help="Number of floors.")
-@click.option('--seed', '-s', type=int, default=0, help="Random seed for generation.")
-@click.option('--roof', '-r', type=click.Choice(['flat', 'gabled', 'hip', 'shed'], case_sensitive=False), default='flat', help="Roof type.")
+@click.option('--width', '-w', type=float, default=20.0, help="Building width (m).")
+@click.option('--depth', '-d', type=float, default=16.0, help="Building depth (m).")
+@click.option('--floors', '-f', type=int, default=1, help="Floor count.")
+@click.option('--seed', '-s', type=int, default=0, help="RNG seed.")
+@click.option('--roof', '-r', type=click.Choice(['flat', 'gabled', 'hip', 'shed'], case_sensitive=False), default='flat', help="Roof geometry.")
 @click.option('--output', '-o', type=click.Path(), default='./output', help="Output directory.")
-@click.option('--spec', type=click.Path(exists=True), help="Path to YAML/JSON spec file.")
-@click.option('--preview', is_flag=True, help="Open in Blender GUI after generation.")
+@click.option('--spec', type=click.Path(exists=True), help="YAML/JSON specification file.")
+@click.option('--preview', is_flag=True, help="Open in Blender GUI.")
 def generate(width, depth, floors, seed, roof, output, spec, preview):
-    """Generate a procedural building based on specifications."""
-    rprint(Panel.fit("[bold green]BlenPC Generation Engine[/bold green]", subtitle="v5.1.2"))
+    """Execute building generation sequence."""
+    console.print("\n[header]INITIALIZING GENERATION SEQUENCE[/header]")
     
     if spec:
         with open(spec, 'r') as f:
@@ -98,73 +109,64 @@ def generate(width, depth, floors, seed, roof, output, spec, preview):
         "command": "generate_building",
         "seed": seed,
         "spec": {
-            "width": width,
-            "depth": depth,
-            "floors": floors,
-            "roof": roof,
-            "output_dir": output
+            "width": width, "depth": depth, "floors": floors, "roof": roof, "output_dir": output
         }
     }
     
-    table = Table(title="Generation Parameters")
-    table.add_column("Parameter", style="cyan")
-    table.add_column("Value", style="magenta")
-    table.add_row("Width", f"{width}m")
-    table.add_row("Depth", f"{depth}m")
-    table.add_row("Floors", str(floors))
-    table.add_row("Seed", str(seed))
-    table.add_row("Roof", roof.capitalize())
-    table.add_row("Output", output)
+    table = Table(box=None, show_header=False, padding=(0, 2))
+    table.add_row("[label]WIDTH[/label]", f"[value]{width}m[/value]")
+    table.add_row("[label]DEPTH[/label]", f"[value]{depth}m[/value]")
+    table.add_row("[label]FLOORS[/label]", f"[value]{floors}[/value]")
+    table.add_row("[label]SEED[/label]", f"[value]{seed}[/value]")
+    table.add_row("[label]ROOF[/label]", f"[value]{roof.upper()}[/value]")
+    table.add_row("[label]OUTPUT[/label]", f"[value]{output}[/value]")
     console.print(table)
     
     res = run_blender_task(input_data, preview)
     
     if res.get("status") == "success":
-        rprint(f"\n[bold green]✓ Generation Successful![/bold green]")
-        rprint(f"[bold]GLB Path:[/bold] {res['result']['glb_path']}")
-        rprint(f"[bold]Manifest:[/bold] {res['result']['manifest']}")
+        console.print(f"\n[success]COMPLETED[/success]")
+        console.print(f"[label]ASSET:[/label] [value]{res['result']['glb_path']}[/value]")
+        console.print(f"[label]MANIFEST:[/label] [value]{res['result']['manifest']}[/value]\n")
     else:
-        rprint(f"\n[bold red]✗ Generation Failed![/bold red]")
-        rprint(f"[red]{res.get('message')}[/red]")
+        console.print(f"\n[error]FAILED[/error]")
+        console.print(f"[error]{res.get('message')}[/error]\n")
 
 @cli.group()
 def asset():
-    """Manage architectural assets (walls, doors, etc.)."""
+    """Manage architectural asset components."""
     pass
 
 @asset.command(name='create-wall')
-@click.option('--name', '-n', required=True, help="Name of the wall asset.")
-@click.option('--length', '-l', type=float, default=4.0, help="Length of the wall.")
-@click.option('--seed', '-s', type=int, default=0, help="Seed for slot generation.")
+@click.option('--name', '-n', required=True, help="Asset identifier.")
+@click.option('--length', '-l', type=float, default=4.0, help="Component length (m).")
+@click.option('--seed', '-s', type=int, default=0, help="RNG seed.")
 def create_wall(name, length, seed):
-    """Create a new engineered wall asset with modular slots."""
+    """Synthesize engineered wall component."""
     input_data = {
         "command": "create_wall",
         "seed": seed,
-        "asset": {
-            "name": name,
-            "dimensions": {"width": length}
-        }
+        "asset": {"name": name, "dimensions": {"width": length}}
     }
-    rprint(f"Creating wall asset: [bold cyan]{name}[/bold cyan] (Length: {length}m)")
+    console.print(f"\n[header]SYNTHESIZING COMPONENT:[/header] [value]{name}[/value]")
     res = run_blender_task(input_data)
     
     if res.get("status") == "success":
-        rprint(f"[bold green]✓ Asset created and registered:[/bold green] {res['result']['blend_file']}")
+        console.print(f"[success]REGISTERED:[/success] [value]{res['result']['blend_file']}[/value]\n")
     else:
-        rprint(f"[bold red]✗ Failed to create asset:[/bold red] {res.get('message')}")
+        console.print(f"[error]SYNTHESIS FAILED:[/error] [error]{res.get('message')}[/error]\n")
 
 @cli.group()
 def registry():
-    """Manage the asset registry and inventory."""
+    """Access asset registry database."""
     pass
 
 @registry.command(name='list')
-@click.option('--tags', '-t', help="Filter by tags (comma separated).")
+@click.option('--tags', '-t', help="Filter by tags (csv).")
 def list_assets(tags):
-    """List all registered assets in the inventory."""
+    """Query registered asset inventory."""
     if not os.path.exists(config.INVENTORY_FILE):
-        rprint("[yellow]Inventory file not found. Registry is empty.[/yellow]")
+        console.print("[warning]DATABASE_NOT_FOUND[/warning]")
         return
         
     with open(config.INVENTORY_FILE, 'r') as f:
@@ -172,16 +174,16 @@ def list_assets(tags):
     
     assets = inv.get('assets', {})
     if not assets:
-        rprint("[yellow]No assets found in registry.[/yellow]")
+        console.print("[warning]INVENTORY_EMPTY[/warning]")
         return
 
     filter_tags = [tag.strip() for tag in tags.split(',')] if tags else []
     
-    table = Table(title="BlenPC Asset Registry")
-    table.add_column("Name", style="cyan")
-    table.add_column("Dimensions (WxHxD)", style="green")
-    table.add_column("Slots", style="magenta")
-    table.add_column("Tags", style="yellow")
+    table = Table(box=None, header_style="header", border_style="border")
+    table.add_column("IDENTIFIER")
+    table.add_column("DIMENSIONS (WxHxD)")
+    table.add_column("SLOTS")
+    table.add_column("TAGS")
     
     for name, data in assets.items():
         asset_tags = data.get('tags', [])
@@ -193,43 +195,47 @@ def list_assets(tags):
         slots_count = len(data.get('slots', []))
         tags_str = ", ".join(asset_tags)
         
-        table.add_row(name, dim_str, str(slots_count), tags_str)
+        table.add_row(f"[value]{name}[/value]", dim_str, str(slots_count), tags_str)
         
+    console.print("\n[header]ASSET REGISTRY QUERY[/header]")
     console.print(table)
+    console.print("")
 
 @cli.command()
 def info():
-    """Display system and environment information."""
-    table = Table(title="BlenPC System Information", show_header=False)
-    table.add_row("BlenPC Version", "5.1.2")
-    table.add_row("Python Version", platform.python_version())
-    table.add_row("OS", f"{platform.system()} {platform.release()}")
-    table.add_row("Blender Path", os.environ.get("BLENDER_PATH", config.BLENDER_PATH))
-    table.add_row("Library Dir", config.LIBRARY_DIR)
-    table.add_row("Registry Dir", config.REGISTRY_DIR)
+    """Display environment diagnostics."""
+    table = Table(box=None, show_header=False, padding=(0, 2))
+    table.add_row("[label]VERSION[/label]", "[value]5.1.2[/value]")
+    table.add_row("[label]PYTHON[/label]", f"[value]{platform.python_version()}[/value]")
+    table.add_row("[label]SYSTEM[/label]", f"[value]{platform.system()} {platform.release()}[/value]")
+    table.add_row("[label]BLENDER[/label]", f"[value]{os.environ.get('BLENDER_PATH', config.BLENDER_PATH)}[/value]")
+    table.add_row("[label]LIBRARY[/label]", f"[value]{config.LIBRARY_DIR}[/value]")
+    table.add_row("[label]REGISTRY[/label]", f"[value]{config.REGISTRY_DIR}[/value]")
     
-    rprint(Panel(table, title="[bold cyan]Environment Info[/bold cyan]", expand=False))
+    console.print("\n[header]SYSTEM DIAGNOSTICS[/header]")
+    console.print(table)
+    console.print("")
 
 @cli.command()
-@click.option('--spec', type=click.Path(exists=True), required=True, help="Path to batch spec file.")
+@click.option('--spec', type=click.Path(exists=True), required=True, help="Batch specification file.")
 def batch(spec):
-    """Run batch production of multiple buildings."""
+    """Execute batch production sequence."""
     with open(spec, 'r') as f:
         spec_data = yaml.safe_load(f) if spec.endswith(('.yaml', '.yml')) else json.load(f)
     
     batch_list = spec_data.get('batch', {}).get('buildings', [])
     common_output = spec_data.get('batch', {}).get('output', {}).get('directory', './output')
     
-    rprint(f"[bold cyan]Starting batch process for {len(batch_list)} buildings...[/bold cyan]")
+    console.print(f"\n[header]BATCH SEQUENCE INITIATED ({len(batch_list)} UNITS)[/header]")
     
     with Progress(
-        SpinnerColumn(),
+        SpinnerColumn("line"),
         TextColumn("[progress.description]{task.description}"),
-        BarColumn(),
+        BarColumn(bar_width=40),
         TaskProgressColumn(),
         console=console
     ) as progress:
-        task = progress.add_task("[green]Processing buildings...", total=len(batch_list))
+        task = progress.add_task("[dim]Processing...", total=len(batch_list))
         
         for b in batch_list:
             seed = b.get('seed', 1000)
@@ -237,29 +243,29 @@ def batch(spec):
                 "command": "generate_building", 
                 "seed": seed,
                 "spec": {
-                    "width": b.get('width', 20.0), 
-                    "depth": b.get('depth', 16.0),
-                    "floors": b.get('floors', 1), 
-                    "roof": b.get('roof', {}).get('type', 'flat'),
+                    "width": b.get('width', 20.0), "depth": b.get('depth', 16.0),
+                    "floors": b.get('floors', 1), "roof": b.get('roof', {}).get('type', 'flat'),
                     "output_dir": common_output
                 }
             }
             res = run_blender_task(input_data)
             if res.get("status") == "error":
-                rprint(f"[red]Error in seed {seed}: {res.get('message')}[/red]")
+                console.print(f"[error]ERR_SEED_{seed}: {res.get('message')}[/error]")
             progress.advance(task)
+    console.print("[success]BATCH SEQUENCE COMPLETED[/success]\n")
 
 @cli.command()
 @click.argument('path', type=click.Path(exists=True))
 def inspect(path):
-    """Inspect a GLB or Blend file for architectural data."""
+    """Analyze architectural data file."""
     size_kb = os.path.getsize(path) / 1024
-    rprint(Panel.fit(
-        f"[bold]File:[/bold] {os.path.basename(path)}\n"
-        f"[bold]Path:[/bold] {path}\n"
-        f"[bold]Size:[/bold] {size_kb:.2f} KB",
-        title="[bold cyan]Asset Inspection[/bold cyan]"
-    ))
+    console.print("\n[header]FILE ANALYSIS[/header]")
+    table = Table(box=None, show_header=False, padding=(0, 2))
+    table.add_row("[label]FILE[/label]", f"[value]{os.path.basename(path)}[/value]")
+    table.add_row("[label]PATH[/label]", f"[value]{path}[/value]")
+    table.add_row("[label]SIZE[/label]", f"[value]{size_kb:.2f} KB[/value]")
+    console.print(table)
+    console.print("")
 
 if __name__ == '__main__':
     cli()
