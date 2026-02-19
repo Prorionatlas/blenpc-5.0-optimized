@@ -56,8 +56,11 @@ class BuildingSpec:
     roof_type: RoofType = RoofType.HIP
 
 
+import warnings
+
 @dataclass(frozen=True)
 class WallSegment:
+    """DEPRECATED: Use ClassifiedEdge and build_wall_strip in v5.0."""
     room_id: int
     side: str
     x1: float
@@ -66,6 +69,9 @@ class WallSegment:
     y2: float
     height: float
     thickness: float
+    
+    def __post_init__(self):
+        warnings.warn("WallSegment is deprecated in v5.0", DeprecationWarning, stacklevel=2)
 
 
 @dataclass(frozen=True)
